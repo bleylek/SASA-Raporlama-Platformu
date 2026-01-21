@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Araç Karnesi - {{ details.forklift }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #7d349f 0%, #48ae74 100%);
+        }
+        body { 
+            font-family: 'Inter', 'Segoe UI', sans-serif; 
+            background: linear-gradient(to bottom right, #f8fafc, #e2e8f0);
+            min-height: 100vh;
+        }
+        .navbar-custom { 
+            background: var(--primary-gradient);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 1rem 0;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            height: 100%;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .json-viewer {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-arrow-left-circle"></i> Ana Sayfa
+            </a>
+            <span class="navbar-text text-white">
+                <i class="bi bi-truck"></i> Araç Karnesi
+            </span>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2><i class="bi bi-box-seam"></i> {{ details.forklift }}</h2>
+                <p class="text-muted">Toplam {{ details.kayit_sayisi }} çalışma kaydı</p>
+            </div>
+        </div>
+
+        <!-- İstatistik Kartları -->
+        <div class="row mb-4 g-3">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-value">{{ details.total_motor_saati }}</div>
+                    <div class="stat-label">
+                        <i class="bi bi-clock-history"></i> Toplam Motor Saati
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-value">{{ details.avg_verimlilik }}%</div>
+                    <div class="stat-label">
+                        <i class="bi bi-speedometer"></i> Ortalama Verimlilik
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-value">{{ details.personeller|length }}</div>
+                    <div class="stat-label">
+                        <i class="bi bi-people"></i> Kullanan Personel Sayısı
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kullanan Personeller -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="table-container">
+                    <h5 class="mb-3"><i class="bi bi-people-fill"></i> Kullanan Personeller</h5>
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Operatör</th>
+                                <th>Toplam Çalışma (dk)</th>
+                                <th>Çalışma Sayısı</th>
+                                <th>Ort. Çalışma (dk)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for operator, data in details.personeller.items() %}
+                            <tr>
+                                <td>
+                                    <a href="/personel/{{ operator }}" class="text-decoration-none">
+                                        <i class="bi bi-box-arrow-up-right"></i> {{ operator }}
+                                    </a>
+                                </td>
+                                <td>{{ "%.2f"|format(data.calisma) }}</td>
+                                <td>{{ data.count }}</td>
+                                <td>{{ "%.2f"|format(data.calisma / data.count) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Günlük Çalışma Detayları -->
+            <div class="col-lg-6 mb-4">
+                <div class="table-container">
+                    <h5 class="mb-3"><i class="bi bi-calendar-check"></i> Çalışma Geçmişi</h5>
+                    <table id="detailTable" class="table table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>Operatör</th>
+                                <th>Tarih</th>
+                                <th>Vardiya</th>
+                                <th>Çalışma (dk)</th>
+                                <th>Verimlilik %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in details.gunluk %}
+                            <tr>
+                                <td>{{ item.operator }}</td>
+                                <td>{{ item.tarih }}</td>
+                                <td><small>{{ item.vardiya }}</small></td>
+                                <td>{{ "%.2f"|format(item.calisma_dk) }}</td>
+                                <td>
+                                    <span class="badge bg-{% if item.verimlilik > 50 %}success{% elif item.verimlilik > 25 %}warning{% else %}danger{% endif %}">
+                                        {{ "%.2f"|format(item.verimlilik) }}%
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Uplink Verileri -->
+            <div class="col-lg-6 mb-4">
+                <div class="table-container">
+                    <h5 class="mb-3"><i class="bi bi-hdd-network"></i> Son Uplink Verileri ({{ details.uplink_data|length }})</h5>
+                    <div style="max-height: 500px; overflow-y: auto;">
+                        {% for uplink in details.uplink_data[:20] %}
+                        <div class="mb-3">
+                            <strong>
+                                <i class="bi bi-calendar-event"></i> {{ uplink.timestamp }}
+                            </strong>
+                            <div class="json-viewer mt-2">
+                                <pre>{{ uplink.data|tojson(indent=2) }}</pre>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#detailTable').DataTable({
+                order: [[1, 'desc']],
+                pageLength: 25,
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/tr.json'
+                }
+            });
+        });
+    </script>
+</body>
+</html>

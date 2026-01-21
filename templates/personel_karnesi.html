@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personel Karnesi - {{ details.operator }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #7d349f 0%, #48ae74 100%);
+        }
+        body { 
+            font-family: 'Inter', 'Segoe UI', sans-serif; 
+            background: linear-gradient(to bottom right, #f8fafc, #e2e8f0);
+            min-height: 100vh;
+        }
+        .navbar-custom { 
+            background: var(--primary-gradient);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 1rem 0;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            height: 100%;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-arrow-left-circle"></i> Ana Sayfa
+            </a>
+            <span class="navbar-text text-white">
+                <i class="bi bi-person-circle"></i> Personel Karnesi
+            </span>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2><i class="bi bi-person-badge"></i> {{ details.operator }}</h2>
+                <p class="text-muted">Toplam {{ details.kayit_sayisi }} kayıt</p>
+            </div>
+        </div>
+
+        <!-- İstatistik Kartları -->
+        <div class="row mb-4 g-3">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value">{{ details.total_calisma_saat }}</div>
+                    <div class="stat-label">
+                        <i class="bi bi-clock"></i> Toplam Çalışma Saati
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value">{{ details.total_calisma }}</div>
+                    <div class="stat-label">
+                        <i class="bi bi-hourglass-split"></i> Toplam Çalışma (dk)
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value">{{ details.avg_hareket_verim }}%</div>
+                    <div class="stat-label">
+                        <i class="bi bi-speedometer2"></i> Ort. Hareket Verimlilik
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-value">{{ details.avg_forklift_verim }}%</div>
+                    <div class="stat-label">
+                        <i class="bi bi-graph-up"></i> Ort. Forklift Verimlilik
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kullanılan Araçlar -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="table-container">
+                    <h5 class="mb-3"><i class="bi bi-truck"></i> Kullanılan Araçlar</h5>
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Forklift</th>
+                                <th>Toplam Çalışma (dk)</th>
+                                <th>Çalışma Sayısı</th>
+                                <th>Ort. Çalışma (dk)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for forklift, data in details.araclar.items() %}
+                            <tr>
+                                <td>
+                                    <a href="/arac/{{ forklift }}" class="text-decoration-none">
+                                        <i class="bi bi-box-arrow-up-right"></i> {{ forklift }}
+                                    </a>
+                                </td>
+                                <td>{{ "%.2f"|format(data.calisma) }}</td>
+                                <td>{{ data.count }}</td>
+                                <td>{{ "%.2f"|format(data.calisma / data.count) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Günlük Detaylar -->
+        <div class="row">
+            <div class="col-12">
+                <div class="table-container">
+                    <h5 class="mb-3"><i class="bi bi-calendar3"></i> Günlük Performans Detayları</h5>
+                    <table id="detailTable" class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Forklift</th>
+                                <th>Tarih</th>
+                                <th>Vardiya</th>
+                                <th>Çalışma (dk)</th>
+                                <th>Hareket (dk)</th>
+                                <th>Verimlilik %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in details.gunluk %}
+                            <tr>
+                                <td>{{ item.forklift }}</td>
+                                <td>{{ item.tarih }}</td>
+                                <td>{{ item.vardiya }}</td>
+                                <td>{{ "%.2f"|format(item.calisma_dk) }}</td>
+                                <td>{{ "%.2f"|format(item.hareket_dk) }}</td>
+                                <td>
+                                    <span class="badge bg-{% if item.verimlilik > 50 %}success{% elif item.verimlilik > 25 %}warning{% else %}danger{% endif %}">
+                                        {{ "%.2f"|format(item.verimlilik) }}%
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#detailTable').DataTable({
+                order: [[1, 'desc']],
+                pageLength: 25,
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/tr.json'
+                }
+            });
+        });
+    </script>
+</body>
+</html>
