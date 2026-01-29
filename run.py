@@ -11,12 +11,22 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
+    from datetime import datetime, timedelta
+    
     # Filtreleri al
     filters = {}
+    
+    # Default: Son 7 gün (kullanıcı tarih girmezse)
     if request.args.get('start_date'):
         filters['start_date'] = request.args.get('start_date')
+    else:
+        filters['start_date'] = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+    
     if request.args.get('end_date'):
         filters['end_date'] = request.args.get('end_date')
+    else:
+        filters['end_date'] = datetime.now().strftime('%Y-%m-%d')
+    
     if request.args.get('isletme_filter'):
         filters['isletme_filter'] = request.args.get('isletme_filter')
     if request.args.get('sbu_filter'):
@@ -31,7 +41,7 @@ def index():
         filters['group_level'] = 'daily'  # Varsayılan günlük
     
     # Verileri çek
-    success, message, data = test_query(filters if filters else None)
+    success, message, data = test_query(filters)
     
     # KPI'ları çek
     kpi_success, kpis = get_kpi_stats(filters if filters else None)
@@ -84,4 +94,4 @@ def arac_karnesi(forklift):
     return render_template('arac_karnesi.html', details=details)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
