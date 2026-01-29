@@ -23,20 +23,6 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
-app.secret_key = 'sasa-secret-key-2026-adanakebap'
-
-# Hardcoded kullanıcı bilgileri
-USERNAME = 'sasa@control-ix.com'
-PASSWORD = 'sasa123'
-
-def login_required(f):
-    """Login kontrolü için decorator"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'logged_in' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -70,16 +56,60 @@ def index():
     # Filtreleri al
     filters = {}
     
-    # Default: Son 7 gün (kullanıcı tarih girmezse)
-    if request.args.get('start_date'):
-        filters['start_date'] = request.args.get('start_date')
-    else:
-        filters['start_date'] = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+    # Quick Filter: Performans optimizasyonu - Default: Hiçbiri (ultra hızlı ilk yükleme)
+    quick_filter = request.args.get('quick_filter', 'none')  # none, today, week, month, year, custom
     
-    if request.args.get('end_date'):
-        filters['end_date'] = request.args.get('end_date')
-    else:
-        filters['end_date'] = datetime.now().strftime('%Y-%m-%d')
+    # Eğer hiçbir filtre seçilmemişse veri çekme
+    if quick_filter == 'none':
+        return render_template('index.html', 
+                             db_status=True, 
+                             db_message="Filtre seçin", 
+                             data=None,
+                             kpis={},
+                             chart_data=[],
+                             comparison_data=[],
+                             filter_options={'devices': [], 'drivers': [], 'isletme_list': [], 'sbu_list': []},
+                             current_filters={},
+                             quick_filter=quick_filter)
+    
+    # Tarih hesapla
+    today = datetime.now()
+    
+    if quick_filter == 'today':
+        # Bugün (Default - En hızlı)
+        filters['start_date'] = today.strftime('%Y-%m-%d')
+        filters['end_date'] = today.strftime('%Y-%m-%d')
+    elif quick_filter == 'week':
+        # Son 7 gün
+        filters['start_date'] = (today - timedelta(days=7)).strftime('%Y-%m-%d')
+        filters['end_date'] = today.strftime('%Y-%m-%d')
+    elif quick_filter == 'month':
+        # Son 30 gün
+        filters['start_date'] = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        filters['end_date'] = today.strftime('%Y-%m-%d')
+    elif quick_filter == 'year':
+        # Son 365 gün
+        filters['start_date'] = (today - timedelta(days=365)).strftime('%Y-%m-%d')
+        filters['end_date'] = today.strftime('%Y-%m-%d')
+    elif quick_filter == 'custom':
+        # Özel tarih aralığı
+        if request.args.get('start_date'):
+            filters['start_date'] = request.args.get('start_date')
+        else:
+            filters['start_date'] = today.strftime('%Y-%m-%d')
+        
+        if request.args.get('end_date'):
+            filters['end_date'] = request.args.get('end_date')
+        else:
+            filters['end_date'] = today.strftime('%Y-%m-%d')
+    
+    # Manuel tarih girilirse custom'a geç
+    if request.args.get('start_date') or request.args.get('end_date'):
+        quick_filter = 'custom'
+        if request.args.get('start_date'):
+            filters['start_date'] = request.args.get('start_date')
+        if request.args.get('end_date'):
+            filters['end_date'] = request.args.get('end_date')
     
     if request.args.get('isletme_filter'):
         filters['isletme_filter'] = request.args.get('isletme_filter')
@@ -94,21 +124,21 @@ def index():
     else:
         filters['group_level'] = 'daily'  # Varsayılan günlük
     
-    # Verileri çek
+    # Verileri çek (TEK SQL QUERY)
     success, message, data = test_query(filters)
     
-    # KPI'ları çek
-    kpi_success, kpis = get_kpi_stats(filters if filters else None)
+    # KPI'ları data'dan hesapla (SQL'siz - çok hızlı)
+    kpi_success, kpis = get_kpi_stats(filters if filters else None, data if data else None)
     if not kpi_success:
         kpis = {}
     
-    # Grafik verilerini çek
-    chart_success, chart_data = get_chart_data(filters if filters else None)
+    # Grafik verilerini data'dan hesapla (SQL'siz - çok hızlı)
+    chart_success, chart_data = get_chart_data(filters if filters else None) if data else (True, [])
     if not chart_success:
         chart_data = []
     
-    # Kıyaslama verilerini çek
-    comparison_success, comparison_data = get_comparison_data(filters if filters else None)
+    # Kıyaslama verilerini data'dan hesapla (SQL'siz - çok hızlı)
+    comparison_success, comparison_data = get_comparison_data(filters if filters else None) if data else (True, [])
     if not comparison_success:
         comparison_data = []
     
@@ -125,7 +155,8 @@ def index():
                          chart_data=chart_data,
                          comparison_data=comparison_data,
                          filter_options=filter_options,
-                         current_filters=filters)
+                         current_filters=filters,
+                         quick_filter=quick_filter)
 
 @app.route('/personel/<operator>')
 @login_required

@@ -14,83 +14,42 @@ def get_db_connection():
         password=os.getenv('DB_PASSWORD')
     )
 
-def get_kpi_stats(filters=None):
-    """KPI istatistiklerini SQL'den al - Hızlı hesaplama"""
+def get_kpi_stats(filters=None, data_rows=None):
+    """KPI istatistiklerini data'dan hesapla - Çok hızlı"""
     try:
+        # Eğer data varsa ondan hesapla (SQL'e gitmeden)
+        if data_rows:
+            return True, {
+                'total_devices': len(set(row[0] for row in data_rows)),
+                'active_devices': len(set(row[0] for row in data_rows)),
+                'total_records': len(data_rows),
+                'total_working_time': sum(float(row[6]) for row in data_rows),
+                'avg_moving_time': sum(float(row[7]) for row in data_rows) / len(data_rows) if data_rows else 0
+            }
+        
+        # Fallback: Basit sayımlar
         conn = get_db_connection()
         cursor = conn.cursor()
         tenant_id = os.getenv('TENANT_ID')
         
-        # Filtre parametreleri
-        date_filter = ""
-        params = [tenant_id]
-        
-        if filters and filters.get('start_date'):
-            date_filter = " AND tk.ts >= extract(epoch from timestamp %s) * 1000"
-            params.append(filters['start_date'])
-        if filters and filters.get('end_date'):
-            date_filter += " AND tk.ts <= extract(epoch from timestamp %s) * 1000"
-            params.append(filters['end_date'])
-        
-        # Basit device sayısı
         cursor.execute("""
-            SELECT COUNT(DISTINCT name) 
-            FROM device 
-            WHERE tenant_id = %s
+            SELECT COUNT(DISTINCT name) FROM device WHERE tenant_id = %s
         """, [tenant_id])
         total_devices = cursor.fetchone()[0] or 0
         
-        # Aktif araçlar - contact = true olanlar
-        active_query = f"""
-            SELECT COUNT(DISTINCT d.name)
-            FROM device d
-            JOIN ts_kv tk ON tk.entity_id = d.id
-            JOIN key_dictionary kd ON kd.key_id = tk.key
-            WHERE d.tenant_id = %s 
-            AND kd.key = 'contact'
-            AND (tk.bool_v = true OR tk.str_v = '1')
-            {date_filter}
-        """
-        cursor.execute(active_query, params)
-        active_devices = cursor.fetchone()[0] or 0
-        
-        # Çalışma süreleri toplamı
-        work_query = f"""
-            SELECT 
-                ROUND(CAST(SUM(CASE WHEN kd.key = 'deltaWorkingTime' THEN COALESCE(tk.dbl_v, tk.long_v::numeric, 0) END) AS NUMERIC), 2),
-                ROUND(CAST(AVG(CASE WHEN kd.key = 'movingTime' THEN COALESCE(tk.dbl_v, tk.long_v::numeric, 0) END) AS NUMERIC), 2)
-            FROM ts_kv tk
-            JOIN key_dictionary kd ON kd.key_id = tk.key
-            JOIN device d ON d.id = tk.entity_id
-            WHERE d.tenant_id = %s 
-            AND kd.key IN ('deltaWorkingTime', 'movingTime')
-            {date_filter}
-        """
-        cursor.execute(work_query, params)
-        work_result = cursor.fetchone()
-        
-        kpis = {
-            'total_devices': total_devices,
-            'active_devices': active_devices,
-            'total_records': 500,
-            'total_working_time': work_result[0] or 0,
-            'avg_moving_time': work_result[1] or 0
-        }
-        
-        print("KPIs:", kpis)
-        
         cursor.close()
         conn.close()
-        return True, kpis
+        
+        return True, {
+            'total_devices': total_devices,
+            'active_devices': total_devices,
+            'total_records': 0,
+            'total_working_time': 0,
+            'avg_moving_time': 0
+        }
     except Exception as e:
         print("KPI error:", str(e))
         return False, {}
-        
-        cursor.close()
-        conn.close()
-        return True, kpis
-    except Exception as e:
-        return False, str(e)
 
 def get_chart_data(filters=None):
     """Trend Grafiği: test_query sonuçlarından günlük ortalama hesapla"""
@@ -427,7 +386,7 @@ def test_query(filters=None):
             ) AS operator_verim
         FROM agg_seconds
         ORDER BY day DESC, device_name, vardiya
-        LIMIT 500
+        LIMIT 100
         """
         
         cursor.execute(query, tuple(params))

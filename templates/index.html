@@ -172,11 +172,42 @@
             </div>
         </div>
         
-        <!-- Filtreler -->
+        <!-- Quick Filter Butonları - Performans Optimizasyonu -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="mb-3"><i class="bi bi-lightning-charge-fill"></i> Hızlı Filtreler - Lütfen Bir Dönem Seçin</h5>
+                <div class="btn-group w-100" role="group">
+                    <a href="/?quick_filter=today" class="btn btn-{{ 'primary' if quick_filter == 'today' else 'outline-primary' }}">
+                        <i class="bi bi-calendar-day"></i> Bugün
+                    </a>
+                    <a href="/?quick_filter=week" class="btn btn-{{ 'primary' if quick_filter == 'week' else 'outline-primary' }}">
+                        <i class="bi bi-calendar-week"></i> Bu Hafta (7 Gün)
+                    </a>
+                    <a href="/?quick_filter=month" class="btn btn-{{ 'primary' if quick_filter == 'month' else 'outline-primary' }}">
+                        <i class="bi bi-calendar-month"></i> Bu Ay (30 Gün)
+                    </a>
+                    <a href="/?quick_filter=year" class="btn btn-{{ 'primary' if quick_filter == 'year' else 'outline-primary' }}">
+                        <i class="bi bi-calendar3"></i> Bu Yıl (365 Gün)
+                    </a>
+                    <button type="button" class="btn btn-{{ 'primary' if quick_filter == 'custom' else 'outline-primary' }}" data-bs-toggle="collapse" data-bs-target="#advancedFilters">
+                        <i class="bi bi-sliders"></i> Özel Tarih / Gelişmiş
+                    </button>
+                </div>
+                {% if quick_filter == 'none' %}
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="bi bi-info-circle"></i> <strong>Hoş geldiniz!</strong> Veri görüntülemek için yukarıdaki butonlardan bir dönem seçin.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Gelişmiş Filtreler (Collapse) -->
+        <div class="collapse {{ 'show' if quick_filter == 'custom' else '' }}" id="advancedFilters">
         <div class="card mb-4">
             <div class="card-body">
-                <h5 class="mb-3"><i class="bi bi-funnel"></i> Filtreler</h5>
+                <h5 class="mb-3"><i class="bi bi-funnel"></i> Gelişmiş Filtreler</h5>
                 <form method="GET" action="/" class="row g-3">
+                    <input type="hidden" name="quick_filter" value="custom">
                     <div class="col-md-2">
                         <label class="form-label"><i class="bi bi-calendar-event"></i> Başlangıç</label>
                         <input type="date" name="start_date" class="form-control" value="{{ request.args.get('start_date', '') }}">
@@ -223,6 +254,7 @@
                 </form>
             </div>
         </div>
+        </div>
         
         {% if data %}
         <!-- Grafikler -->
@@ -248,7 +280,7 @@
         <!-- Tablo -->
         <div class="table-container">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0"><i class="bi bi-table"></i> Telemetri Verileri</h5>
+                <h5 class="mb-0"><i class="bi bi-table"></i> Araç Verileri</h5>
                 <div class="d-flex gap-2">
                     <button id="btnExcel" class="btn btn-success btn-sm"><i class="bi bi-file-earmark-excel"></i> Excel</button>
                     <button id="btnCSV" class="btn btn-info btn-sm"><i class="bi bi-filetype-csv"></i> CSV</button>
@@ -260,7 +292,7 @@
                 <table id="dataTable" class="table table-striped table-hover table-sm">
                     <thead>
                         <tr>
-                            <th>Forklift</th>
+                            <th>Araç</th>
                             <th>Operatör</th>
                             <th>Tarih</th>
                             <th>İşletme</th>
