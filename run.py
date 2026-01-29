@@ -4,12 +4,66 @@ import os
 # Projeyi path'e ekle
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
+from functools import wraps
 from app.database import test_query, get_kpi_stats, get_chart_data, get_comparison_data, get_filter_options, get_personel_details, get_arac_details
 
 app = Flask(__name__)
+app.secret_key = 'sasa-secret-key-2026-adanakebap'
+
+# Hardcoded kullanıcı bilgileri
+USERNAME = 'sasa@control-ix.com'
+PASSWORD = 'sasa123'
+
+def login_required(f):
+    """Login kontrolü için decorator"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+app.secret_key = 'sasa-secret-key-2026-adanakebap'
+
+# Hardcoded kullanıcı bilgileri
+USERNAME = 'sasa@control-ix.com'
+PASSWORD = 'sasa123'
+
+def login_required(f):
+    """Login kontrolü için decorator"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login sayfası"""
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        if username == USERNAME and password == PASSWORD:
+            session['logged_in'] = True
+            session['username'] = username
+            flash('Başarıyla giriş yaptınız!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Kullanıcı adı veya şifre hatalı!', 'danger')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    """Çıkış yap"""
+    session.clear()
+    flash('Çıkış yaptınız.', 'info')
+    return redirect(url_for('login'))
 
 @app.route('/')
+@login_required
 def index():
     from datetime import datetime, timedelta
     
@@ -74,6 +128,7 @@ def index():
                          current_filters=filters)
 
 @app.route('/personel/<operator>')
+@login_required
 def personel_karnesi(operator):
     """Personel Detay Sayfası"""
     success, message, details = get_personel_details(operator)
@@ -84,6 +139,7 @@ def personel_karnesi(operator):
     return render_template('personel_karnesi.html', details=details)
 
 @app.route('/arac/<forklift>')
+@login_required
 def arac_karnesi(forklift):
     """Araç Detay Sayfası"""
     success, message, details = get_arac_details(forklift)
