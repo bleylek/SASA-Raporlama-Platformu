@@ -160,7 +160,7 @@ def test_query(filters=None):
         date_filter = ""
         device_filter = ""
         driver_filter = ""
-        params = [tenant_id]
+        params = [tenant_id, tenant_id]  # İki kere tenant_id: device_to_isletme ve operator_mapping için
         
         if filters:
             if filters.get('start_date'):
@@ -173,7 +173,7 @@ def test_query(filters=None):
                 device_filter = " AND d.name = %s"
                 params.append(filters['device_filter'])
             if filters.get('driver_filter'):
-                driver_filter = " AND (kv_json ->> 'driverName') = %s"
+                driver_filter = " AND driver_name = %s"
                 params.append(filters['driver_filter'])
         
         query = """
@@ -196,6 +196,13 @@ def test_query(filters=None):
             JOIN asset a_isletme ON a_isletme.id = r.to_id
             JOIN asset a_sbu ON a_sbu.id = r.from_id
             WHERE r.relation_type = 'isletme-sbu'
+        ),
+        operator_mapping AS (
+            SELECT
+                name AS operator_hex,
+                COALESCE(NULLIF(label, ''), name) AS operator_label
+            FROM asset
+            WHERE tenant_id = %s AND type = 'operator'
         ),
         base AS (
             SELECT 
@@ -239,11 +246,23 @@ def test_query(filters=None):
                 to_timestamp(ts/1000.0) AT TIME ZONE 'Europe/Istanbul' AS end_time,
                 COALESCE(NULLIF(kv_json ->> 'deltaWorkingTime','')::numeric, 0) AS work_seconds,
                 COALESCE(NULLIF(kv_json ->> 'movingTime','')::numeric, 0) AS move_seconds,
-                COALESCE((kv_json ->> 'driverName'), '-') AS driver_name
+                COALESCE((kv_json ->> 'driverName'), '-') AS driver_name_hex
             FROM json_rows
             WHERE (kv_json ->> 'deltaWorkingTime') IS NOT NULL
                 AND COALESCE(NULLIF(kv_json ->> 'deltaWorkingTime','')::numeric, 0) > 0
-                """ + driver_filter + """
+        ),
+        parsed_with_operator AS (
+            SELECT
+                p.device_name,
+                p.isletme,
+                p.sbu,
+                p.end_time,
+                p.work_seconds,
+                p.move_seconds,
+                COALESCE(om.operator_label, p.driver_name_hex, '-') AS driver_name
+            FROM parsed p
+            LEFT JOIN operator_mapping om ON om.operator_hex = p.driver_name_hex
+            WHERE 1=1 """ + driver_filter + """
         ),
         ranges AS (
             SELECT
@@ -255,7 +274,7 @@ def test_query(filters=None):
                 work_seconds,
                 move_seconds,
                 driver_name
-            FROM parsed
+            FROM parsed_with_operator
             WHERE work_seconds > 0
         ),
         days_expanded AS (
@@ -418,15 +437,14 @@ def get_filter_options():
         """, [tenant_id])
         devices = [row[0] for row in cursor.fetchall()]
         
-        # Sürücü listesi
+        # Operatör listesi - ASSET tablosundan gerçek isimleri çek (label alanı)
         cursor.execute("""
-            SELECT DISTINCT tk.str_v 
-            FROM ts_kv tk
-            LEFT JOIN key_dictionary kd ON kd.key_id = tk.key
-            LEFT JOIN device d ON d.id = tk.entity_id
-            WHERE d.tenant_id = %s AND kd.key = 'driverName' AND tk.str_v IS NOT NULL
-            ORDER BY tk.str_v
-            LIMIT 100
+            SELECT DISTINCT 
+                COALESCE(NULLIF(label, ''), name) as operator_name
+            FROM asset 
+            WHERE tenant_id = %s 
+            AND type = 'operator'
+            ORDER BY operator_name
         """, [tenant_id])
         drivers = [row[0] for row in cursor.fetchall()]
         
