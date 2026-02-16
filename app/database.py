@@ -173,7 +173,8 @@ def test_query(filters=None):
                 device_filter = " AND d.name = %s"
                 params.append(filters['device_filter'])
             if filters.get('driver_filter'):
-                driver_filter = " AND driver_name = %s"
+                # Sadece label ile eşleştir (dropdown'da zaten label gösteriliyor)
+                driver_filter = " AND om.operator_label = %s"
                 params.append(filters['driver_filter'])
         
         query = """
@@ -494,8 +495,13 @@ def get_filter_options():
 def get_personel_details(driver_name):
     """Personel Karnesi: Operatörün detaylı bilgileri"""
     try:
-        # test_query'den operatör verisini al
-        filters = {'driver_filter': driver_name}
+        from datetime import datetime, timedelta
+        # test_query'den operatör verisini al - Son 90 gün (performans için)
+        filters = {
+            'driver_filter': driver_name,
+            'start_date': (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d'),
+            'end_date': datetime.now().strftime('%Y-%m-%d')
+        }
         success, message, rows = test_query(filters)
         
         if not success or not rows:
@@ -550,12 +556,17 @@ def get_personel_details(driver_name):
 def get_arac_details(device_name):
     """Araç Karnesi: Forklift'in detaylı bilgileri"""
     try:
+        from datetime import datetime, timedelta
         conn = get_db_connection()
         cursor = conn.cursor()
         tenant_id = os.getenv('TENANT_ID')
         
-        # 1. test_query'den forklift verisini al
-        filters = {'device_filter': device_name}
+        # 1. test_query'den forklift verisini al - Son 90 gün (performans için)
+        filters = {
+            'device_filter': device_name,
+            'start_date': (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d'),
+            'end_date': datetime.now().strftime('%Y-%m-%d')
+        }
         success, message, rows = test_query(filters)
         
         if not success or not rows:
@@ -585,7 +596,7 @@ def get_arac_details(device_name):
                 'verimlilik': float(row[10])
             })
         
-        # 2. Tüm uplink verileri (son 100 kayıt)
+        # 2. Son uplink verileri (son 20 kayıt - performans için)
         cursor.execute("""
             WITH base AS (
                 SELECT 
@@ -605,7 +616,7 @@ def get_arac_details(device_name):
                 WHERE d.tenant_id = %s 
                     AND d.name = %s
                 ORDER BY tk.ts DESC
-                LIMIT 1000
+                LIMIT 200
             ),
             json_rows AS (
                 SELECT 
@@ -619,7 +630,7 @@ def get_arac_details(device_name):
                 kv_json
             FROM json_rows
             ORDER BY ts DESC
-            LIMIT 100
+            LIMIT 20
         """, (tenant_id, device_name))
         
         uplink_data = []
