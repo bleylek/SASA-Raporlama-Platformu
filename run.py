@@ -11,6 +11,16 @@ from app.database import test_query, get_kpi_stats, get_chart_data, get_comparis
 app = Flask(__name__)
 app.secret_key = 'sasa-secret-key-2026-adanakebap'
 
+# Custom Jinja2 filter: Verimlilik yüzdelerini max 100 ile sınırla
+@app.template_filter('cap_percentage')
+def cap_percentage(value):
+    """Yüzde değerini maksimum 100 ile sınırla"""
+    try:
+        val = float(value)
+        return min(val, 100.0)
+    except (ValueError, TypeError):
+        return 0.0
+
 # Hardcoded kullanıcı bilgileri
 USERNAME = 'sasa@control-ix.com'
 PASSWORD = 'sasa123'

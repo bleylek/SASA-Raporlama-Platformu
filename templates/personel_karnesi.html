@@ -86,7 +86,7 @@
             </div>
             <div class="col-md-3">
                 <div class="stat-card">
-                    <div class="stat-value">{{ details.avg_hareket_verim }}%</div>
+                    <div class="stat-value">{{ [details.avg_hareket_verim, 100]|min }}%</div>
                     <div class="stat-label">
                         <i class="bi bi-speedometer2"></i> Ort. Hareket Verimlilik
                     </div>
@@ -94,7 +94,7 @@
             </div>
             <div class="col-md-3">
                 <div class="stat-card">
-                    <div class="stat-value">{{ details.avg_forklift_verim }}%</div>
+                    <div class="stat-value">{{ [details.avg_forklift_verim, 100]|min }}%</div>
                     <div class="stat-label">
                         <i class="bi bi-graph-up"></i> Ort. Forklift Verimlilik
                     </div>
@@ -160,8 +160,9 @@
                                 <td>{{ "%.2f"|format(item.calisma_dk) }}</td>
                                 <td>{{ "%.2f"|format(item.hareket_dk) }}</td>
                                 <td>
-                                    <span class="badge bg-{% if item.verimlilik > 50 %}success{% elif item.verimlilik > 25 %}warning{% else %}danger{% endif %}">
-                                        {{ "%.2f"|format(item.verimlilik) }}%
+                                    {% set capped = [item.verimlilik, 100]|min %}
+                                    <span class="badge bg-{% if capped > 50 %}success{% elif capped > 25 %}warning{% else %}danger{% endif %}">
+                                        {{ "%.2f"|format(capped) }}%
                                     </span>
                                 </td>
                             </tr>

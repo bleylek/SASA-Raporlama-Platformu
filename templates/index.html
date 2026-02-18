@@ -161,7 +161,8 @@
                         <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem;">Ort. Verimlilik</h6>
                         <h2 class="text-warning mb-1">
                             {% if data %}
-                                {{ "%.1f"|format((data|sum(attribute=9) / data|length)) }}%
+                                {% set avg_val = (data|sum(attribute=9) / data|length)|cap_percentage %}
+                                {{ "%.1f"|format(avg_val) }}%
                             {% else %}
                                 0%
                             {% endif %}
@@ -328,8 +329,9 @@
                             <td class="text-end text-warning">{{ "%.1f"|format(row[8]|float) }}</td>
                             <td class="text-end">
                                 {% if row[9] and row[9]|float > 0 %}
-                                    <span class="badge {% if row[9]|float >= 70 %}bg-success{% elif row[9]|float >= 40 %}bg-warning{% else %}bg-danger{% endif %}">
-                                        {{ "%.1f"|format(row[9]|float) }}%
+                                    {% set capped_val = row[9]|cap_percentage %}
+                                    <span class="badge {% if capped_val >= 70 %}bg-success{% elif capped_val >= 40 %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ "%.1f"|format(capped_val) }}%
                                     </span>
                                 {% else %}
                                     <span class="text-muted">-</span>
@@ -337,8 +339,9 @@
                             </td>
                             <td class="text-end">
                                 {% if row[10] and row[10]|float > 0 %}
-                                    <span class="badge {% if row[10]|float >= 80 %}bg-success{% elif row[10]|float >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
-                                        {{ "%.1f"|format(row[10]|float) }}%
+                                    {% set capped_val = row[10]|cap_percentage %}
+                                    <span class="badge {% if capped_val >= 80 %}bg-success{% elif capped_val >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ "%.1f"|format(capped_val) }}%
                                     </span>
                                 {% else %}
                                     <span class="text-muted">-</span>
@@ -346,8 +349,9 @@
                             </td>
                             <td class="text-end">
                                 {% if row[11] and row[11]|float > 0 %}
-                                    <span class="badge {% if row[11]|float >= 80 %}bg-success{% elif row[11]|float >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
-                                        {{ "%.1f"|format(row[11]|float) }}%
+                                    {% set capped_val = row[11]|cap_percentage %}
+                                    <span class="badge {% if capped_val >= 80 %}bg-success{% elif capped_val >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ "%.1f"|format(capped_val) }}%
                                     </span>
                                 {% else %}
                                     <span class="text-muted">-</span>
